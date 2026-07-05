@@ -1,0 +1,38 @@
+groups:
+  - name: pdfer_alerts
+    rules:
+      # 1. Высокий процент ошибок API
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+          / sum(rate(http_requests_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+
+      # 2. Медленные ответы API
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 10m
+        labels:
+          severity: warning
+
+      # 3. Сервис недоступен вообще (используя метрику "up")
+      - alert: ServiceDown
+        expr: up{job="pdfer-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service Down Test"
+          description: "Сервер pdfer-api упал! Проверьте контейнеры."
+      
+      # 4. Слишком много задач застряло в обработке
+      - alert: TooManyPendingDocuments
+        expr: pending_documents_current > 50
+        for: 15m
+        labels:
+          severity: warning

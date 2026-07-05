@@ -1,0 +1,139 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  api:
+    build: .
+    logging: *default-logging
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      rabbitmq:
+        condition: service_started
+
+  worker-documents:
+    build: .
+    logging: *default-logging
+    command: celery -A app.celery_app worker --queues=documents --concurrency=2 --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+
+  worker-notifications:
+    build: .
+    logging: *default-logging
+    command: celery -A app.celery_app worker --queues=notifications --concurrency=5 --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+      - rabbitmq
+
+  beat:
+    build: .
+    logging: *default-logging
+    command: celery -A app.celery_app beat --loglevel=info
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+
+  db:
+    image: postgres:16-alpine
+    logging: *default-logging
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_stat_statements
+      - -c
+      - pg_stat_statements.max=10000
+      - -c
+      - pg_stat_statements.track=all
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d pdfer_db"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    logging: *default-logging
+    image: redis:7-alpine
+
+  rabbitmq:
+    logging: *default-logging
+    image: rabbitmq:3-management-alpine
+
+  promtail:
+    image: grafana/promtail:2.9.0
+    container_name: pdfer_promtail
+    logging: *default-logging
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: pdfer_loki
+    logging: *default-logging
+    volumes:
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+
+  grafana:
+    image: grafana/grafana:10.4.0
+    container_name: pdfer_grafana
+    logging: *default-logging
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - loki
+
+  prometheus:
+    image: prom/prometheus:v2.51.0
+    container_name: pdfer_prometheus
+    logging: *default-logging
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: pdfer_alertmanager
+    logging: *default-logging
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+
+volumes:
+  postgres_data:
+  loki_data:
+  grafana_data:
+  prometheus_data:

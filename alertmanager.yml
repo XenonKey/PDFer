@@ -1,0 +1,16 @@
+route:
+  receiver: "telegram-notifications"
+  group_by: ["alertname"]
+  group_wait: 10s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: "telegram-notifications"
+    telegram_configs:
+      - bot_token: "8918232562:AAGEdqOKSlMRK-jCr4cct7MQ2-Paiy3rsAo"
+        chat_id: 180254523
+        message: |
+          🔥 {{ .GroupLabels.alertname }}
+          Сработал в: {{ .CommonAnnotations.description }}
+          Время алерта (UTC): {{ (index .Alerts 0).StartsAt }}

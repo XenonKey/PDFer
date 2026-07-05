@@ -1,0 +1,32 @@
+# --- Локальные заметки для Claude Code (не для публикации) ---
+CLAUDE.md
+.claude/
+
+# --- Runtime-артефакты, не должны попадать в репозиторий ---
+celerybeat-schedule
+generated_docs/*
+!generated_docs/.gitkeep
+
+# --- Виртуальное окружение uv и Python ---
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Секреты и настройки среды (ВАЖНО!) ---
+.env
+.env.*
+!.env.example
+
+# --- Настройки редактора кода Zed и macOS ---
+.zed/
+.DS_Store
+
+# --- Специфичные файлы сборки (если появятся) ---
+dist/
+build/
+*.egg-info/
