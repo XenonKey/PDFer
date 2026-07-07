@@ -3,9 +3,11 @@ import time
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 
 from app.config import settings
 from app.database import async_engine
+from app.landing import LANDING_PAGE_HTML
 from app.observability.logging_config import setup_logging
 
 setup_logging()
@@ -54,6 +56,11 @@ app.include_router(chat.router)
 from app.observability.metrics import init_metrics  # noqa: E402
 
 init_metrics(app)
+
+
+@app.get("/", response_class=HTMLResponse, include_in_schema=False)
+async def landing():
+    return LANDING_PAGE_HTML
 
 
 @app.get("/health")
