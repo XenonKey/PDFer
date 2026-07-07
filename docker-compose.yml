@@ -8,6 +8,8 @@ services:
   api:
     build: .
     logging: *default-logging
+    ports:
+      - "127.0.0.1:8000:8000"
     env_file:
       - .env
     depends_on:
@@ -67,7 +69,7 @@ services:
       - -c
       - pg_stat_statements.track=all
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d pdfer_db"]
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"]
       interval: 3s
       timeout: 3s
       retries: 5
@@ -105,7 +107,7 @@ services:
     container_name: pdfer_grafana
     logging: *default-logging
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
